@@ -1,0 +1,51 @@
+#!/bin/bash
+
+
+DB_FILE="workouts.db"
+WO_PATH="/home/greg/ZBank/Workouts/Dashboard/"
+num_files=$(ls /home/greg/ZBank/Workouts/ | grep ".md" | wc -l)
+TODAYDATE=$(date +"%Y-%m-%d")
+
+
+if [[ $num_files -gt 0 ]]; then
+		# Capture the first matching filename (modify for multiple files)
+		WO_FILE=$(find /home/greg/ZBank/Workouts -maxdepth 1 -type f -name "*.md" | head -n 1)
+
+		#WO_FILE=$(ls -1 home/greg/ZBank/Workouts/*.md | head -n 1)
+		echo "$WO_FILE"
+		while IFS= read -e line; do
+				#		echo "$line"
+				if [[ $line == "# "* ]]; then
+						WORKOUT_DATE="${line#* }"
+						if [[ "$WORKOUT_DATE" == "$TODAYDATE" ]]; then
+								echo "Dates Match, Exiting"
+								exit 1
+						fi
+				elif [[ $line == "Mood: "* ]]; then
+						WORKOUT_MOOD="${line#*Mood: }"
+				elif [[ $line == "Focus: "* ]]; then
+						WORKOUT_FOCUS="${line#*Focus: }"
+				elif [[ $line == "Diet: "* ]]; then
+						WORKOUT_DIET="${line#*Diet: }"
+				elif [[ $line == "Bodyweight: "* ]]; then
+						WORKOUT_MYWEIGHT="${line#*Bodyweight: }"
+				elif [[ $line == "## "* ]]; then
+						WORKOUT_MUSCLE="${line#*## }"
+				elif [[ $line == "### "* ]]; then
+						WORKOUT_EXERCISE="${line#*### }"
+				elif [[ ${line: -2} == "kg" ]]; then
+						WORKOUT_WEIGHT="${line::-2}"
+				elif [[ $line == "- "* ]]; then
+						WORKOUT_REPS="${line#*- }"
+						sql="INSERT INTO lifts (Date, Exercise, Weight, Reps, Focus, Mood, Diet, MYWEIGHT, Muscle) VALUES ('$WORKOUT_DATE', '$WORKOUT_EXERCISE', '$WORKOUT_WEIGHT', '$WORKOUT_REPS', '$WORKOUT_FOCUS', '$WORKOUT_MOOD', '$WORKOUT_DIET', '$WORKOUT_MYWEIGHT', '$WORKOUT_MUSCLE')"
+						sqlite3 "$WO_PATH$DB_FILE" "$sql"
+
+				fi
+		done < $WO_FILE
+		mv $WO_FILE /home/greg/ZBank/Workouts/Archive/
+		/home/greg/scripts/Workout/build-dashboard2.sh
+else
+		echo "There are no files with .md extension"
+fi
+
+
